@@ -1,9 +1,566 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Free App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Base Inflow Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#eef2f0;--panel:#fbfcfb;--line:#cfd9d6;--text:#15292d;--muted:#5d7276;--accent:#0f6b73;--rain:#a8691a;--warn:#9a3412;--field:#fff;--band:rgba(15,107,115,.14);--obs:#5d7276;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a1d;--panel:#132428;--line:#244045;--text:#dce9e8;--muted:#8da7aa;--accent:#4fc3c9;--rain:#e0a458;--warn:#f0a070;--field:#0d1a1d;--band:rgba(79,195,201,.16);--obs:#8da7aa}}
+:root[data-theme="dark"]{--bg:#0d1a1d;--panel:#132428;--line:#244045;--text:#dce9e8;--muted:#8da7aa;--accent:#4fc3c9;--rain:#e0a458;--warn:#f0a070;--field:#0d1a1d;--band:rgba(79,195,201,.16);--obs:#8da7aa}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Public Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:end;margin-bottom:18px}
+h1{font:600 28px/1.1 Newsreader,Georgia,serif;margin:0}
+header p{margin:4px 0 0;color:var(--muted);max-width:60ch}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.layout{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+h2{font:600 17px/1.2 Newsreader,Georgia,serif;margin:0 0 10px}
+label,.lbl{font-weight:500;display:block}
+.hint{color:var(--muted);font-size:12px;margin:2px 0 0}
+textarea,input[type=number],select{width:100%;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical;min-height:84px}
+.ctl{margin-bottom:14px}
+.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.val{color:var(--accent);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 4px;background:transparent;font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--bg);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:16px}
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}}
+.stat{padding:12px 14px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat .t{color:var(--muted);font-size:12px}
+.stat .n{font:600 28px/1.15 Newsreader,Georgia,serif}
+.stat .n small{font:400 12px "Public Sans",sans-serif;color:var(--muted)}
+.stat .s{font-size:12px;color:var(--muted)}
+.up{color:var(--accent)}.dn{color:var(--rain)}
+.chartbox{position:relative;height:360px}
+.msg{border-left:3px solid var(--warn);background:var(--panel);padding:8px 12px;margin-bottom:12px;font-size:13px;border-radius:0 6px 6px 0}
+.msg:empty{display:none}
+details{font-size:13px;color:var(--muted)}
+summary{cursor:pointer;color:var(--text);font-weight:500}
+details code{background:var(--bg);padding:1px 5px;border-radius:4px}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 14px;font-weight:500;color:var(--muted)}
+.tabs button[aria-selected=true]{color:var(--text);border-color:var(--accent)}
+.chk{display:flex;gap:8px;align-items:center;font-weight:500}.chk input{accent-color:var(--accent)}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:16px;width:min(580px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+#json{min-height:240px;margin:8px 0 12px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
 </head>
 <body>
-    <h1>Hello World! My app is live.</h1>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Base inflow forecast</h1>
+    <p>72-hour reservoir baseflow outlook from recent flows, a recession constant, and forecast rain.</p>
+  </div>
+  <div class="row">
+    <button id="btn-fit" type="button">Fit k from history</button>
+    <button id="btn-import" type="button">Import JSON</button>
+    <button id="btn-export" type="button">Export JSON</button>
+  </div>
+</header>
+
+<div id="msgs" aria-live="polite"></div>
+
+<nav class="tabs" role="tablist">
+  <button type="button" role="tab" id="tab-fc" aria-selected="true">Forecast</button>
+  <button type="button" role="tab" id="tab-cx" aria-selected="false">Correct inflow</button>
+</nav>
+<div class="layout" id="view-fc">
+<div>
+  <section class="panel">
+    <h2>Recent flows</h2>
+    <label for="hist">Hourly base inflow, oldest first (m³/s)</label>
+    <textarea id="hist" spellcheck="false"></textarea>
+    <p class="hint"><span id="hist-info"></span></p>
+  </section>
+
+  <section class="panel">
+    <h2>Basin response</h2>
+    <div class="ctl"><div class="ctl-h"><label for="k">Daily recession constant, k</label><span class="val" id="o-k"></span></div>
+      <input type="range" id="k" min="0.5" max="0.99" step="0.01">
+      <p class="hint">Lower drains faster; 0.99 is slow groundwater drainage.</p></div>
+    <div class="ctl"><div class="ctl-h"><label for="lag">Mean recharge delay</label><span class="val" id="o-lag"></span></div>
+      <input type="range" id="lag" min="0" max="48" step="1">
+      <p class="hint">Average time for rain to reach the channel as baseflow.</p></div>
+    <div class="ctl"><div class="ctl-h"><label for="alpha">Rain that becomes recharge</label><span class="val" id="o-alpha"></span></div>
+      <input type="range" id="alpha" min="0" max="30" step="0.5"></div>
+    <div class="ctl"><label for="area">Catchment area (km²)</label>
+      <input type="number" id="area" min="1" step="1">
+      <p class="hint">Converts rain depth to flow volume.</p></div>
+    <div class="ctl" style="margin-bottom:0"><span class="lbl">Antecedent condition</span>
+      <div class="seg" id="basin" role="group" aria-label="Antecedent condition">
+        <button type="button" data-v="dry" aria-pressed="false">Dry ×0.5</button>
+        <button type="button" data-v="normal" aria-pressed="false">Normal ×1</button>
+        <button type="button" data-v="saturated" aria-pressed="false">Wet ×1.8</button>
+      </div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Forecast rain</h2>
+    <div class="grid3">
+      <div><label for="r1">0–24 h (mm)</label><input type="number" id="r1" min="0" step="1"></div>
+      <div><label for="r2">24–48 h (mm)</label><input type="number" id="r2" min="0" step="1"></div>
+      <div><label for="r3">48–72 h (mm)</label><input type="number" id="r3" min="0" step="1"></div>
+    </div>
+    <div class="ctl" style="margin:12px 0 0"><label for="timing">Timing within each day</label>
+      <select id="timing">
+        <option value="uniform">Spread evenly</option>
+        <option value="front">Early in the day</option>
+        <option value="mid">Mid-day peak</option>
+        <option value="back">Late in the day</option>
+      </select></div>
+  </section>
+</div>
+
+<div>
+  <section class="stats" id="stats" aria-label="Forecast summary"></section>
+
+  <section class="panel">
+    <h2>Hydrograph</h2>
+    <div class="chartbox"><canvas id="chart" role="img" aria-label="Observed and forecast base inflow with uncertainty range"></canvas></div>
+    <p class="hint">Shaded band: scenarios with k ±0.03 and recharge ×0.6 to ×1.5. Hour 0 is the latest observation.</p>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>How the forecast works</summary>
+      <p><code>Q(t) = Q_base(t) + Q_recharge(t)</code></p>
+      <p>Initial baseflow Q₀ decays exponentially by k. Incoming forecast rain is routed into effective groundwater recharge using a 2-parameter Nash cascade delay kernel h(t). Recharge water enters groundwater storage and drains under the same k: each hour adds (1 − k<sup>1/24</sup>) of the arriving recharge to the flow, so the volume released can never exceed the volume of recharge, and the part still in storage at hour 72 is not shown.</p>
+    </details>
+  </section>
+</div>
+</div>
+<div class="layout" id="view-cx" hidden>
+<div>
+  <section class="panel">
+    <h2>Raw base inflow</h2>
+    <label for="raw">Hourly flows, oldest first (m³/s)</label>
+    <textarea id="raw" spellcheck="false"></textarea>
+    <p class="hint">Mark missing readings with - or text (for example NA). Negative values count as missing too.</p>
+  </section>
+  <section class="panel">
+    <h2>Corrections</h2>
+    <p class="hint" style="margin:0 0 12px">Applied in this order. Gaps are always filled by interpolation.</p>
+    <div class="ctl"><label class="chk"><input type="checkbox" id="c-spike" checked> Remove spikes</label>
+      <div class="ctl-h"><span class="hint">Sensitivity (lower removes more)</span><span class="val" id="o-sens"></span></div>
+      <input type="range" id="c-sens" min="2" max="8" step="0.5" value="3.5" aria-label="Spike sensitivity"></div>
+    <div class="ctl"><div class="ctl-h"><label for="c-win">Smoothing window</label><span class="val" id="o-win"></span></div>
+      <input type="range" id="c-win" min="1" max="11" step="2" value="3">
+      <p class="hint">Centered average. 1 hour means no smoothing.</p></div>
+    <div class="ctl" style="margin-bottom:0"><label class="chk"><input type="checkbox" id="c-cap" checked> Limit rises (recession only)</label>
+      <div class="ctl-h"><span class="hint">Largest allowed rise per hour</span><span class="val" id="o-rise"></span></div>
+      <input type="range" id="c-rise" min="0" max="5" step="0.1" value="0.3" aria-label="Largest allowed rise per hour">
+      <p class="hint">Base inflow should fall steadily between events. Set 0 to forbid any rise.</p></div>
+  </section>
+</div>
+<div>
+  <section class="stats" id="cx-stats" aria-label="Correction summary"></section>
+  <section class="panel">
+    <h2>Raw vs corrected</h2>
+    <div class="chartbox"><canvas id="chart2" role="img" aria-label="Raw and corrected base inflow"></canvas></div>
+    <p class="hint">Diamonds mark hours the correction changed by more than 0.5%.</p>
+  </section>
+  <section class="panel">
+    <h2>Corrected flows</h2>
+    <textarea id="cx-out" class="out" readonly aria-label="Corrected flows"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button type="button" id="btn-use">Use in forecast</button>
+      <button type="button" id="btn-cxcopy">Copy values</button>
+    </div>
+  </section>
+</div>
+</div>
+</div>
+<dialog id="dlg" aria-labelledby="dlg-t">
+  <h2 id="dlg-t"></h2>
+  <p class="hint" id="dlg-h"></p>
+  <textarea id="json" spellcheck="false" aria-label="JSON data"></textarea>
+  <div class="msg" id="dlg-err" role="alert"></div>
+  <div class="row">
+    <button type="button" id="dl-save">Save .json file</button>
+    <button type="button" id="dl-copy">Copy</button>
+    <button type="button" id="dl-file">Choose file…</button>
+    <button type="button" id="dl-load">Load data</button>
+    <button type="button" id="dl-close">Close</button>
+  </div>
+  <input type="file" id="file" accept=".json,application/json" hidden>
+</dialog>
+<div id="toast" role="status"></div>
+
+<script>
+const H = 72, MULT = {dry:.5, normal:1, saturated:1.8};
+const DEFAULTS = {k:.92, lag:12, alpha:5, area:150, basin:'normal', r1:25, r2:10, r3:0, timing:'uniform'};
+const $ = id => document.getElementById(id);
+let S = {...DEFAULTS}, chart, fc = [], hist = [];
+
+/* ---------- demo + persistence ---------- */
+function demoHistory(){
+  return Array.from({length:24}, (_, i) => (17.6 * Math.pow(.92, i/24) + Math.sin(i*2.3)*.04).toFixed(2)).join(', ');
+}
+function save(){ try{ localStorage.setItem('baseflow-v2', JSON.stringify({...S, hist:$('hist').value})); }catch(e){} }
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem('baseflow-v2')||'null'); if(d){ S = {...DEFAULTS, ...d}; $('hist').value = d.hist||demoHistory(); return; } }catch(e){}$('hist').value = demoHistory();
+}
+
+/* ---------- model ---------- */
+function parseHistory(text){
+  const tokens = text.split(/[\s,;]+/).filter(Boolean); const v = []; let bad = 0;
+  tokens.forEach(t => { const n = Number(t); (isFinite(n) && n >= 0) ? v.push(n) : bad++; });
+  return {v, bad};
+}
+
+/* Upgraded: 2-Parameter Nash Cascade Delay Kernel (n=2 linear reservoirs) */
+function kernel(lag){
+  const out = new Array(H).fill(0);
+  if(lag <= 0){ out[0] = 1; return out; }
+  const K = lag / 2; // Storage constant for 2 reservoirs
+  let tot = 0;
+  for(let j=0; j<H; j++){
+    const t = j + 0.5;
+    const w = (t / (K * K)) * Math.exp(-t / K);
+    out[j] = w;
+    tot += w;
+  }
+  return tot > 0 ? out.map(x => x / tot) : out;
+}
+
+function dayProfile(type){
+  const w = Array.from({length:24}, (_, h) => type==='front' ? 24-h : type==='back' ? h+1 : type==='mid' ? Math.min(h+1, 24-h) : 1);
+  const s = w.reduce((a,b)=>a+b,0); return w.map(x=>x/s);
+}
+
+/* Upgraded Hydrological Engine: Mass-Balanced Groundwater Storage Routing */
+function simulate(p, q0, rain, prof, rf=1){
+  const kh = Math.pow(p.k, 1/24); // Hourly recession factor
+  const h = kernel(p.lag);
+  const flowFactor = p.area * 1000 / 3600 * (p.alpha / 100) * MULT[p.basin] * rf;
+  
+  // Total hourly rain depth to recharge inflow
+  const rainInflow = Array.from({length:H}, (_, t) => rain[Math.floor(t/24)] * prof[t%24] * flowFactor);
+  
+  // Delayed recharge arrival at groundwater pool
+  const rechargeArrival = new Array(H).fill(0);
+  for(let t=0; t<H; t++){
+    for(let s=0; s<=t; s++){
+      rechargeArrival[t] += rainInflow[s] * h[t-s];
+    }
+  }
+
+  // Mass Balance Routing through Continuous Groundwater Reservoir
+  let currentRecession = q0;
+  let currentRechargeFlow = 0;
+  const result = [];
+
+  for(let t=0; t<H; t++){
+    currentRecession = currentRecession * kh;
+    // Water entering storage drains at the hourly rate (1 - kh), so the flow added per hour is (1 - kh) x arrival
+    currentRechargeFlow = currentRechargeFlow * kh + (1 - kh) * rechargeArrival[t];
+    result.push({
+      hour: t + 1,
+      rec: currentRecession,
+      rch: currentRechargeFlow,
+      tot: currentRecession + currentRechargeFlow
+    });
+  }
+  return result;
+}
+
+/* Upgraded: Rain-Filtered OLS Recession Constant Fit */
+function fitK(v){
+  if(v.length < 4) return null;
+  const recessionPts = [];
+  
+  // Only extract continuous falling legs (Q_t < Q_{t-1})
+  for(let i=1; i<v.length; i++){
+    if(v[i] < v[i-1] && v[i] > 0){
+      recessionPts.push([i, v[i]]);
+    }
+  }
+  
+  if(recessionPts.length < 3) return 0; // Not enough recession points
+  
+  const n = recessionPts.length;
+  const sx = recessionPts.reduce((a,p)=>a+p[0], 0);
+  const sy = recessionPts.reduce((a,p)=>a+Math.log(p[1]), 0);
+  const sxy = recessionPts.reduce((a,p)=>a+p[0]*Math.log(p[1]), 0);
+  const sxx = recessionPts.reduce((a,p)=>a+p[0]*p[0], 0);
+  
+  const denom = (n*sxx - sx*sx);
+  if(denom === 0) return 0;
+  
+  const slope = (n*sxy - sx*sy) / denom;
+  return slope < 0 ? Math.exp(slope * 24) : 0;
+}
+
+/* ---------- compute + render ---------- */
+function update(){
+  const {v, bad} = parseHistory($('hist').value); hist = v;
+  const msgs = [];
+  if(bad) msgs.push(`${bad} value${bad>1?'s':''} in the flow list ${bad>1?'were':'was'} ignored (negative or not a number).`);
+  if(!v.length){ $('msgs').innerHTML = '<div class="msg">Enter at least one hourly flow to see a forecast.</div>'; fc = []; $('stats').innerHTML=''; if(chart){chart.data.datasets=[];chart.update('none');} return; }
+  if(v.length < 6) msgs.push('Fewer than 6 hourly values: Q₀ is the last one, so a noisy reading will carry straight into the forecast.');
+  const q0 = v[v.length-1], avg = v.reduce((a,b)=>a+b,0)/v.length;
+  $('hist-info').textContent = `${v.length} hours loaded · latest Q₀ ${q0.toFixed(2)} m³/s · average ${avg.toFixed(2)} m³/s`;
+  const fk = fitK(v);
+  if(fk !== null && fk !== 0 && Math.abs(fk - S.k) > .08) msgs.push(`Your history recedes at about k = ${fk.toFixed(2)}, but k is set to ${S.k.toFixed(2)}. Use "Fit k from history", or clean noisy data in the Correct inflow tab.`);
+  if(fk === 0) msgs.push('The recent flows lack clear recession segments, so a recession fit cannot be reliably calculated.');
+
+  const rain = [S.r1, S.r2, S.r3].map(x => Math.max(0, +x || 0)), prof = dayProfile(S.timing);
+  fc = simulate(S, q0, rain, prof);
+  const scen = [];
+  [-.03,.03].forEach(dk => [.6,1.5].forEach(rf => scen.push(simulate({...S, k:Math.min(.995,Math.max(.4,S.k+dk))}, q0, rain, prof, rf))));
+  fc.forEach((r,i) => { r.lo = Math.min(...scen.map(s=>s[i].tot)); r.hi = Math.max(...scen.map(s=>s[i].tot)); });
+
+  // summary strip
+  const day = d => fc.slice(d*24, d*24+24), mean = a => a.reduce((s,r)=>s+r.tot,0)/a.length;
+  const avgs = [0,1,2].map(d => mean(day(d))), prev = [q0, avgs[0], avgs[1]];
+  const volM = fc.reduce((s,r)=>s+r.tot,0)*3600/1e6, rchM = fc.reduce((s,r)=>s+r.rch,0)*3600/1e6;
+  const cell = (t, n, s) => `<div class="stat"><div class="t">${t}</div><div class="n">${n}</div><div class="s">${s}</div></div>`;
+  const delta = d => `<span class="${d>=0?'up':'dn'}">${d>=0?'+':''}${d.toFixed(2)}</span> vs `;
+  const labels = ['latest Q₀','day 1','day 2'];
+  $('stats').innerHTML = avgs.map((a,d) => {
+    const pk = day(d).reduce((m,r)=>r.tot>m.tot?r:m);
+    return cell(`Hours ${d*24}–${d*24+24} average`, `${a.toFixed(2)} <small>m³/s</small>`, `${delta(a-prev[d])}${labels[d]} · peak ${pk.tot.toFixed(2)} at +${pk.hour} h`);
+  }).join('') + cell('72-hour volume', `${volM.toFixed(2)} <small>million m³</small>`, `${volM?Math.round(rchM/volM*100):0}% from forecast rain`);
+
+  $('msgs').innerHTML = msgs.map(m => `<div class="msg">${m}</div>`).join('');
+  renderChart(); save();
+}
+
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const nowLines = {id:'nowLines', afterDraw(c){
+  const x = c.scales.x, y = c.scales.y, g = c.ctx; g.save(); g.setLineDash([4,4]); g.lineWidth = 1;
+  [[0,'Now'],[24,''],[48,'']].forEach(([h,l]) => {
+    const px = x.getPixelForValue(h); if(px < x.left || px > x.right) return;
+    g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(px,y.top); g.lineTo(px,y.bottom); g.stroke();
+    if(l){ g.fillStyle = css('--muted'); g.font = '11px "Public Sans",sans-serif'; g.fillText(l, px+4, y.top+12); }
+  }); g.restore();
+}};
+function renderChart(){
+  const n = hist.length, pt = (x,y) => ({x,y});
+  const obs = hist.map((q,i) => pt(-(n-1-i), q)), last = obs[n-1];
+  const data = f => [pt(0,last.y), ...fc.map(r => pt(r.hour, f(r)))];
+  const T = css('--accent'), M = css('--muted');
+  const ds = [
+    {label:'Observed', data:obs, borderColor:css('--obs'), borderWidth:2, pointRadius:1.5},
+    {label:'Forecast total', data:data(r=>r.tot), borderColor:T, borderWidth:2.5, pointRadius:0},
+    {label:'Recession only', data:data(r=>r.rec), borderColor:M, borderDash:[5,4], borderWidth:1.5, pointRadius:0},
+    {label:'Low', data:data(r=>r.lo), borderWidth:0, pointRadius:0, fill:false},
+    {label:'Range', data:data(r=>r.hi), borderWidth:0, pointRadius:0, fill:'-1', backgroundColor:css('--band')}
+  ];
+  chart.data.datasets = ds;
+  chart.options.scales.x.min = -Math.min(n-1, 48); chart.options.scales.x.max = H;
+  chart.options.scales.x.ticks.color = chart.options.scales.y.ticks.color = M;
+  chart.options.scales.x.grid.color = chart.options.scales.y.grid.color = css('--line');
+  chart.options.scales.y.title.color = M;
+  chart.options.plugins.legend.labels.color = css('--text');
+  chart.update('none');
+}
+function initChart(){
+  chart = new Chart($('chart'), {type:'line', data:{datasets:[]}, plugins:[nowLines], options:{
+    responsive:true, maintainAspectRatio:false, interaction:{mode:'nearest', axis:'x', intersect:false},
+    scales:{
+      x:{type:'linear', grid:{color:'#ccc'}, ticks:{stepSize:12, callback:v => v>0?'+'+v+' h':v+' h'}},
+      y:{beginAtZero:false, grid:{color:'#ccc'}, title:{display:true, text:'Base inflow (m³/s)'}}},
+    plugins:{
+      legend:{labels:{filter:i => !['Low','Range'].includes(i.text), usePointStyle:true, boxWidth:8}},
+      tooltip:{filter:i => !['Low','Range'].includes(i.dataset.label),
+        callbacks:{title:i => (i[0].parsed.x>0?'+':'')+i[0].parsed.x+' h', label:c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} m³/s`,
+          afterBody:i => { const r = fc[i[0].parsed.x-1]; return r ? `Range: ${r.lo.toFixed(2)} – ${r.hi.toFixed(2)} m³/s` : ''; }}}}
+  }});
+}
+
+/* ---------- UI wiring ---------- */
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('on'); setTimeout(()=>el.classList.remove('on'), 2000); }
+function sync(){
+  $('k').value = S.k; $('lag').value = S.lag; $('alpha').value = S.alpha; $('area').value = S.area;
+  ['r1','r2','r3'].forEach(i => $(i).value = S[i]);$('timing').value = S.timing;
+  $('o-k').textContent = (+S.k).toFixed(2); $('o-lag').textContent = S.lag + ' h';$('o-alpha').textContent = (+S.alpha).toFixed(1) + ' %';
+  document.querySelectorAll('#basin button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.basin));
+}
+function bind(){
+  [['k',parseFloat],['lag',parseFloat],['alpha',parseFloat]].forEach(([id,f]) => $(id).addEventListener('input', e => { S[id] = f(e.target.value); sync(); update(); }));
+  ['area','r1','r2','r3'].forEach(id => $(id).addEventListener('input', e => { const n = parseFloat(e.target.value); S[id] = isFinite(n) && n >= 0 ? n : 0; if(id==='area' && S.area<=0) S.area = 1; update(); }));
+  $('timing').addEventListener('change', e => { S.timing = e.target.value; update(); });$('hist').addEventListener('input', update);
+  $('basin').addEventListener('click', e => { const b = e.target.closest('button'); if(b){ S.basin = b.dataset.v; sync(); update(); } });$('btn-fit').addEventListener('click', () => {
+    const k = fitK(hist);
+    if(k === null) return toast('Need at least 4 hourly values to fit k');
+    if(k === 0) return toast('No falling recession segments found in history');
+    S.k = Math.min(.99, Math.max(.5, +k.toFixed(2))); sync(); update(); toast(`k set to ${S.k.toFixed(2)}`);
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => hist.length && renderChart());
+}
+
+/* ---------- correction tool ---------- */
+let chart2, cx = null;
+const med = a => { const b = [...a].sort((x,y)=>x-y), m = b.length>>1; return b.length%2 ? b[m] : (b[m-1]+b[m])/2; };
+const avgOf = a => a.reduce((x,y)=>x+y,0)/a.length;
+function parseRaw(t){ return t.split(/[\s,;]+/).filter(Boolean).map(x => { const n = Number(x); return isFinite(n) && n >= 0 ? n : null; }); }
+function correct(raw, o){
+  const n = raw.length; if(!raw.some(v=>v!==null)) return null;
+  const flag = new Array(n).fill(''), q = raw.slice();
+  let last = null, nxt = new Array(n).fill(null), nx = null;
+  for(let i=n-1;i>=0;i--){ if(raw[i]!==null) nx = i; nxt[i] = nx; }
+  const prv = []; for(let i=0;i<n;i++){ if(raw[i]!==null) last = i; prv[i] = last; }
+  for(let i=0;i<n;i++) if(raw[i]===null){
+    const a = prv[i], b = nxt[i]; flag[i] = 'gap';
+    q[i] = a===null ? raw[b] : b===null ? raw[a] : raw[a] + (raw[b]-raw[a])*(i-a)/(b-a);
+  }
+  const filled = q.slice(); let spikes = 0, capped = 0;
+  if(o.spike){
+    const src = q.slice();
+    for(let i=0;i<n;i++){
+      const w = src.slice(Math.max(0,i-3), Math.min(n,i+4)), m = med(w);
+      const sd = Math.max(1.4826*med(w.map(x=>Math.abs(x-m))), .01*m);
+      if(flag[i]!=='gap' && Math.abs(src[i]-m) > o.sens*sd){ q[i] = m; flag[i] = 'spike'; spikes++; }
+    }
+  }
+  if(o.win > 1){ const h = (o.win-1)/2, src = q.slice(); for(let i=0;i<n;i++) q[i] = avgOf(src.slice(Math.max(0,i-h), Math.min(n,i+h+1))); }
+  if(o.cap) for(let i=1;i<n;i++){ const lim = q[i-1]*(1+o.rise/100); if(q[i] > lim){ q[i] = lim; capped++; if(!flag[i]) flag[i] = 'cap'; } }
+  const gaps = flag.filter(f=>f==='gap').length;
+  return {q, filled, flag, gaps, spikes, capped};
+}
+function renderCorrection(){
+  const raw = parseRaw($('raw').value);
+  $('o-sens').textContent = (+$('c-sens').value).toFixed(1); $('o-win').textContent =$('c-win').value + ' h'; $('o-rise').textContent = (+$('c-rise').value).toFixed(1) + ' %/h';
+  cx = correct(raw, {spike:$('c-spike').checked, sens:+$('c-sens').value, win:+$('c-win').value, cap:$('c-cap').checked, rise:+$('c-rise').value});
+  if(!cx){ $('cx-stats').innerHTML = '<div class="stat"><div class="t">Enter at least one valid flow.</div></div>'; $('cx-out').value = ''; chart2.data.datasets = []; chart2.update('none'); return; }
+  const fk = v => { const k = fitK(v); return k===null ? 'n/a' : k===0 ? 'not receding' : k.toFixed(2); };
+  const cell = (t,n,s) => `<div class="stat"><div class="t">${t}</div><div class="n">${n}</div><div class="s">${s}</div></div>`;
+  $('cx-stats').innerHTML = cell('Gaps filled', cx.gaps, `of ${raw.length} hours`) + cell('Spikes removed', cx.spikes, `sensitivity ${(+$('c-sens').value).toFixed(1)}`)
+    + cell('Rises limited', cx.capped, `above ${(+$('c-rise').value).toFixed(1)} %/h`) + cell('Fitted k', `${fk(cx.filled)} → ${fk(cx.q)}`, 'raw → corrected');
+  $('cx-out').value = cx.q.map(x=>x.toFixed(2)).join(', ');
+  const n = raw.length, X = i => -(n-1-i), pt = (i,y) => ({x:X(i), y});
+  const mark = cx.q.map((v,i)=>[v,i]).filter(([v,i]) => Math.abs(v-cx.filled[i]) > .005*cx.filled[i] || cx.flag[i]==='gap');
+  chart2.data.datasets = [
+    {label:'Raw', data:raw.map((v,i)=>pt(i,v)), borderColor:css('--obs'), borderWidth:1.5, pointRadius:2, spanGaps:false},
+    {label:'Corrected', data:cx.q.map((v,i)=>pt(i,v)), borderColor:css('--accent'), borderWidth:2.5, pointRadius:0},
+    {label:'Changed hours', data:mark.map(([v,i])=>pt(i,v)), showLine:false, pointStyle:'rectRot', pointRadius:5, backgroundColor:css('--rain'), borderColor:css('--rain')}
+  ];
+  const M = css('--muted'), o = chart2.options;
+  o.scales.x.ticks.color = o.scales.y.ticks.color = o.scales.y.title.color = M;
+  o.scales.x.grid.color = o.scales.y.grid.color = css('--line'); o.plugins.legend.labels.color = css('--text');
+  chart2.update('none');
+}
+function initChart2(){
+  chart2 = new Chart($('chart2'), {type:'line', data:{datasets:[]}, options:{
+    responsive:true, maintainAspectRatio:false, interaction:{mode:'nearest', axis:'x', intersect:false},
+    scales:{x:{type:'linear', grid:{color:'#ccc'}, ticks:{callback:v=>v+' h'}}, y:{grid:{color:'#ccc'}, title:{display:true, text:'Base inflow (m³/s)'}}},
+    plugins:{legend:{labels:{usePointStyle:true, boxWidth:8}}, tooltip:{callbacks:{title:i=>i[0].parsed.x+' h', label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} m³/s`}}}}});
+}
+function showTab(t){
+  const c = t === 'cx';
+  $('view-fc').hidden = c; $('view-cx').hidden = !c; $('msgs').hidden = c;
+  $('tab-fc').setAttribute('aria-selected', !c);$('tab-cx').setAttribute('aria-selected', c);
+  if(c){ if(!chart2){ initChart2(); if(!$('raw').value) $('raw').value =$('hist').value; } renderCorrection(); }
+  else if(chart) chart.resize();
+}
+function bindCorrection(){
+  $('tab-fc').addEventListener('click', () => showTab('fc'));$('tab-cx').addEventListener('click', () => showTab('cx'));
+  ['raw','c-spike','c-sens','c-win','c-cap','c-rise'].forEach(id => $(id).addEventListener('input', renderCorrection));$('btn-use').addEventListener('click', () => {
+    if(!cx) return toast('Nothing to use yet');
+    $('hist').value =$('cx-out').value; showTab('fc'); update(); toast('Corrected flows loaded into the forecast');
+  });
+  $('btn-cxcopy').addEventListener('click', async () => {
+    try{ await navigator.clipboard.writeText($('cx-out').value); }catch(e){$('cx-out').select(); document.execCommand('copy'); }
+    toast('Corrected values copied');
+  });
+}
+
+/* ---------- JSON import / export ---------- */
+const APP_ID = 'base-inflow-forecast', TIMINGS = ['uniform','front','mid','back'];
+let DL = null, dlgMode = 'export';
+function collect(){
+  return {app:APP_ID, version:1, savedAt:new Date().toISOString(),
+    forecast:{k:S.k, lag:S.lag, alpha:S.alpha, area:S.area, basin:S.basin, r1:S.r1, r2:S.r2, r3:S.r3, timing:S.timing},
+    history:parseHistory($('hist').value).v,
+    rawInput:$('raw').value,
+    correction:{spike:$('c-spike').checked, sens:+$('c-sens').value, win:+$('c-win').value, cap:$('c-cap').checked, rise:+$('c-rise').value}};
+}
+function applyData(d){
+  if(!d || typeof d !== 'object' || d.app !== APP_ID) throw new Error('This is not a base inflow forecast export.');
+  const f = d.forecast || {}, num = (x, lo, hi, def) => { const n = Number(x); return isFinite(n) && x !== null && x !== '' ? Math.min(hi, Math.max(lo, n)) : def; };
+  const next = {...S,
+    k:num(f.k,.5,.99,S.k), lag:Math.round(num(f.lag,0,48,S.lag)), alpha:num(f.alpha,0,30,S.alpha), area:num(f.area,1,1e7,S.area),
+    r1:num(f.r1,0,1e4,S.r1), r2:num(f.r2,0,1e4,S.r2), r3:num(f.r3,0,1e4,S.r3),
+    basin:MULT[f.basin]!==undefined ? f.basin : S.basin, timing:TIMINGS.includes(f.timing) ? f.timing : S.timing};
+  let hv = null;
+  if(Array.isArray(d.history)){
+    if(d.history.some(x => typeof x !== 'number' || !isFinite(x) || x < 0)) throw new Error('The history list must contain only non-negative numbers.');
+    hv = d.history.map(x => +x.toFixed(4)).join(', ');
+  } else if(d.history !== undefined) throw new Error('The history field must be a list of numbers.');
+  S = next; if(hv !== null) $('hist').value = hv;
+  if(typeof d.rawInput === 'string') $('raw').value = d.rawInput;
+  const c = d.correction || {}, setR = (id, x) => { const el = $(id), n = Number(x); if(isFinite(n) && x !== null) el.value = Math.min(+el.max, Math.max(+el.min, n)); };
+  if(typeof c.spike === 'boolean') $('c-spike').checked = c.spike;
+  if(typeof c.cap === 'boolean') $('c-cap').checked = c.cap;
+  setR('c-sens', c.sens); setR('c-win', c.win); setR('c-rise', c.rise);
+  sync(); update(); if(chart2) renderCorrection();
+}
+function dlgButtons(){
+  const ex = dlgMode === 'export';
+  $('dl-save').hidden = !(ex && DL); $('dl-copy').hidden = !ex; $('dl-file').hidden = ex; $('dl-load').hidden = ex;
+}
+function openDlg(mode){
+  dlgMode = mode; $('dlg-err').textContent = '';
+  const ex = mode === 'export';
+  $('dlg-t').textContent = ex ? 'Export data as JSON' : 'Import data from JSON';
+  $('dlg-h').textContent = ex ? 'Includes your forecast settings, hourly flows, raw flows and correction settings.' : 'Choose a file saved with Export JSON, or paste its contents below. Importing replaces your current inputs.';
+  $('json').readOnly = ex; $('json').value = ex ? JSON.stringify(collect(), null, 2) : '';
+  $('json').placeholder = ex ? '' : 'Paste JSON here';
+  dlgButtons(); if(!$('dlg').open) $('dlg').showModal();
+}
+function importText(text){
+  try{ applyData(JSON.parse(text)); $('dlg').close(); toast('Data imported'); }
+  catch(e){ $('dlg-err').textContent = e instanceof SyntaxError ? 'That is not valid JSON.' : e.message; }
+}
+function bindJson(){
+  if(window.claude && claude.use) claude.use('downloads').then(d => { DL = d || null; dlgButtons(); }).catch(() => {});
+  $('btn-export').addEventListener('click', () => openDlg('export'));
+  $('btn-import').addEventListener('click', () => openDlg('import'));
+  $('dl-close').addEventListener('click', () => $('dlg').close());
+  $('dl-save').addEventListener('click', async () => {
+    try{ await DL.save({filename:`base-inflow-${new Date().toISOString().slice(0,10)}.json`, data:$('json').value}); toast('File saved'); }
+    catch(e){ if(!e || e.code !== 'declined') $('dlg-err').textContent = 'Could not save the file. Use Copy instead.'; }
+  });
+  $('dl-copy').addEventListener('click', async () => {
+    try{ await navigator.clipboard.writeText($('json').value); }catch(e){ $('json').select(); document.execCommand('copy'); }
+    toast('JSON copied');
+  });
+  $('dl-file').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader(); r.onload = () => { $('json').value = r.result; importText(r.result); }; r.onerror = () => { $('dlg-err').textContent = 'Could not read that file.'; };
+    r.readAsText(f); e.target.value = '';
+  });
+  $('dl-load').addEventListener('click', () => importText($('json').value));
+}
+load(); sync(); initChart(); bind(); bindCorrection(); bindJson(); update();
+</script>
 </body>
 </html>
